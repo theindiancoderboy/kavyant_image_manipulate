@@ -1,9 +1,9 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QGraphicsView, 
-    QGraphicsScene, QGraphicsRectItem, QAction, QFileDialog, QToolBar, QPushButton, QVBoxLayout, QWidget
+    QGraphicsScene, QGraphicsRectItem, QAction, QFileDialog, QToolBar, QPushButton
 )
-from PyQt5.QtGui import QPixmap, QPen, QColor, QIcon
+from PyQt5.QtGui import QPixmap, QPen, QColor
 from PyQt5.QtCore import Qt, QRectF, QPointF
 
 class ImageEditor(QMainWindow):
@@ -21,8 +21,8 @@ class ImageEditor(QMainWindow):
         self.rect_item = None
         self.start_pos = QPointF()
         self.end_pos = QPointF()
-        self.crop_rect = None
         self.current_tool = 'select'
+        self.selecting = False
 
         self.view.setMouseTracking(True)
         self.view.viewport().installEventFilter(self)
@@ -87,24 +87,27 @@ class ImageEditor(QMainWindow):
             self.pixmap = QPixmap(file_path)
             self.image_item = self.scene.addPixmap(self.pixmap)
             self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+            self.rect_item = None
 
     def eventFilter(self, source, event):
-        if event.type() == event.MouseButtonPress and event.button() == Qt.LeftButton:
-            if self.current_tool == 'select':
+        if self.current_tool == 'select':
+            if event.type() == event.MouseButtonPress and event.button() == Qt.LeftButton:
                 self.start_pos = self.view.mapToScene(event.pos())
-                if not self.rect_item:
-                    self.rect_item = QGraphicsRectItem()
-                    self.rect_item.setPen(QPen(QColor("red"), 2))
-                    self.scene.addItem(self.rect_item)
+                if self.rect_item:
+                    self.scene.removeItem(self.rect_item)
+                self.rect_item = QGraphicsRectItem()
+                self.rect_item.setPen(QPen(QColor("red"), 2))
+                self.scene.addItem(self.rect_item)
+                self.selecting = True
 
-        elif event.type() == event.MouseMove and self.rect_item and self.current_tool == 'select':
-            self.end_pos = self.view.mapToScene(event.pos())
-            self.rect_item.setRect(QRectF(self.start_pos, self.end_pos).normalized())
-
-        elif event.type() == event.MouseButtonRelease and event.button() == Qt.LeftButton:
-            if self.current_tool == 'select':
+            elif event.type() == event.MouseMove and self.selecting:
                 self.end_pos = self.view.mapToScene(event.pos())
                 self.rect_item.setRect(QRectF(self.start_pos, self.end_pos).normalized())
+
+            elif event.type() == event.MouseButtonRelease and event.button() == Qt.LeftButton:
+                self.end_pos = self.view.mapToScene(event.pos())
+                self.rect_item.setRect(QRectF(self.start_pos, self.end_pos).normalized())
+                self.selecting = False
 
         return super().eventFilter(source, event)
 
