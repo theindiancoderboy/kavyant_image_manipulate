@@ -1,10 +1,10 @@
 import sys
 from PyQt5.QtWidgets import (
-    QMainWindow, QApplication, QGraphicsRectItem,
+    QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,
     QGraphicsView, QGraphicsScene, QAction, QFileDialog, QToolBar, QPushButton)
 from PyQt5.QtGui import QPixmap, QPen, QColor, QTransform, QIcon
 from PyQt5.QtCore import Qt, QRectF, QPointF
-from tools import set_select_tool, crop_image, zoom_in, zoom_out, rotate_image, load_image, default_image
+from tools import set_select_tool, crop_image, zoom_in, zoom_out, rotate_image, load_image, default_image,adjust_brightness
 
 class ImageEditor(QMainWindow):
     def __init__(self):
@@ -72,6 +72,13 @@ class ImageEditor(QMainWindow):
         rotate_tool.setIcon(icon)
         rotate_tool.clicked.connect(self.rotate_image)
         toolbox.addWidget(rotate_tool)
+        
+        brightness_spinner = QSpinBox()
+        brightness_spinner.setRange(-100, 100)
+        brightness_spinner.setValue(0)
+        brightness_spinner.valueChanged.connect(self.adjust_brightness)
+        toolbox.addWidget(brightness_spinner)
+
 
     def set_select_tool(self):
         set_select_tool(self)
@@ -90,6 +97,9 @@ class ImageEditor(QMainWindow):
 
     def load_image(self):
         load_image(self)
+    def adjust_brightness(self, value):
+        adjust_brightness(self, value)
+
 
     def default_image(self, imagepatj):
         default_image(self, imagepatj)
