@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import (
-    QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,
+    QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,QSlider,QVBoxLayout, QWidget,
+    QLabel,
     QGraphicsView, QGraphicsScene, QAction, QFileDialog, QToolBar, QPushButton)
 from PyQt5.QtGui import QPixmap, QPen, QColor, QTransform, QIcon
 from PyQt5.QtCore import Qt, QRectF, QPointF
@@ -17,7 +18,7 @@ class ImageEditor(QMainWindow):
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene, self)
         self.setCentralWidget(self.view)
-
+        self.original_image = None
         self.rect_item = None
         self.start_pos = QPointF()
         self.end_pos = QPointF()
@@ -41,6 +42,7 @@ class ImageEditor(QMainWindow):
 
     def create_toolbox(self):
         toolbox = QToolBar("Tools", self)
+        toolbox.setFixedWidth(250)
         self.addToolBar(Qt.RightToolBarArea, toolbox)
 
         select_tool = QPushButton("Select")
@@ -73,15 +75,31 @@ class ImageEditor(QMainWindow):
         rotate_tool.clicked.connect(self.rotate_image)
         toolbox.addWidget(rotate_tool)
         
-        brightness_spinner = QSpinBox()
-        brightness_spinner.setRange(-100, 100)
-        brightness_spinner.setValue(0)
-        brightness_spinner.valueChanged.connect(self.adjust_brightness)
-        toolbox.addWidget(brightness_spinner)
+        slider_layout = QVBoxLayout()
+        slider_widget = QWidget()
+        slider_widget.setLayout(slider_layout)
+        
+        brightness_slider = QSlider(Qt.Horizontal)
+        brightness_slider.setRange(-100, 100)
+        brightness_slider.setValue(0)
+        brightness_slider.valueChanged.connect(self.adjust_brightness)
+        brightness_slider.valueChanged.connect(self.update_brightness_label)
+        slider_layout.addWidget(brightness_slider)
+
+        self.brightness_label = QLabel("Brightness: 0")
+        slider_layout.addWidget(self.brightness_label)
+
+        toolbox.addWidget(slider_widget)
+
 
 
     def set_select_tool(self):
         set_select_tool(self)
+        
+    def update_brightness_label(self, value):
+        self.brightness_label.setText(f"Brightness: {value}")
+
+
 
     def crop_image(self):
         crop_image(self)

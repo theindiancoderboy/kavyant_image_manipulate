@@ -1,10 +1,8 @@
-from PyQt5.QtWidgets import QFileDialog
-from PyQt5.QtGui import (
-    QPixmap, QTransform, QColor, QPen,QImage
-)
-from PyQt5.QtCore import QRectF,Qt
-from PIL import Image, ImageEnhance
+import cv2
 import numpy as np
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtCore import QRectF
 
 def set_select_tool(editor):
     editor.current_tool = 'select'
@@ -42,35 +40,30 @@ def load_image(editor):
     if file_path:
         editor.scene.clear()
         editor.pixmap = QPixmap(file_path)
+        editor.original_image = cv2.imread(file_path)  # Store the original image as a NumPy array
         editor.image_item = editor.scene.addPixmap(editor.pixmap)
         editor.scene.setSceneRect(QRectF(editor.pixmap.rect()))
         editor.rect_item = None
 
-def default_image(editor, imagepatj):
-    if imagepatj:
+def default_image(editor, imagepath):
+    if imagepath:
         editor.scene.clear()
-        editor.pixmap = QPixmap(imagepatj)
+        editor.pixmap = QPixmap(imagepath)
+        editor.original_image = cv2.imread(imagepath)  # Store the original image as a NumPy array
         editor.image_item = editor.scene.addPixmap(editor.pixmap)
         editor.scene.setSceneRect(QRectF(editor.pixmap.rect()))
         editor.rect_item = None
 
 def adjust_brightness(editor, value):
-    if hasattr(editor, 'pixmap') and editor.pixmap:
-        image = editor.pixmap.toImage()
-        width = image.width()
-        height = image.height()
-
-        ptr = image.bits()
-        ptr.setsize(image.byteCount())
-        arr = np.array(ptr).reshape(height, width, 4)
-
-        pil_image = Image.fromarray(arr, 'RGBA')
-        enhancer = ImageEnhance.Brightness(pil_image)
+    if editor.original_image is not None:
         factor = (value + 100) / 100  # Range from 0 (completely dark) to 2 (completely bright)
-        bright_image = enhancer.enhance(factor)
+        hsv = cv2.cvtColor(editor.original_image, cv2.COLOR_BGR2HSV)
+        hsv[..., 2] = cv2.multiply(hsv[..., 2], factor)
+        bright_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
-        arr = np.array(bright_image)
-        qimage = QImage(arr, arr.shape[1], arr.shape[0], arr.shape[1] * 4, QImage.Format_RGBA8888)
+        height, width, channel = bright_image.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(bright_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
         editor.pixmap = QPixmap.fromImage(qimage)
         editor.scene.clear()
