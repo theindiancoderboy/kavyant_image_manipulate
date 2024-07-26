@@ -3,9 +3,22 @@ from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,QSlider,QVBoxLayout, QWidget,
     QLabel,
     QGraphicsView, QGraphicsScene, QAction, QFileDialog, QToolBar, QPushButton)
-from PyQt5.QtGui import QPixmap, QPen, QColor, QTransform, QIcon
+from PyQt5.QtGui import (
+    QPen,
+    QColor,
+    QIcon,
+    QKeySequence
+)
 from PyQt5.QtCore import Qt, QRectF, QPointF
-from tools import set_select_tool, crop_image, zoom_in, zoom_out, rotate_image, load_image, default_image,adjust_brightness
+from tools import (
+    set_select_tool,
+    crop_image, zoom_in, 
+    zoom_out, rotate_image, 
+    load_image, default_image,
+    adjust_brightness,
+    adjust_contrast,
+    save_image
+)
 
 class ImageEditor(QMainWindow):
     def __init__(self):
@@ -36,9 +49,15 @@ class ImageEditor(QMainWindow):
         load_action = QAction("&Load Image", self)
         load_action.triggered.connect(self.load_image)
 
+        save_action = QAction("&Save Image", self)
+        save_action.setShortcut(QKeySequence.Save)
+        save_action.triggered.connect(self.save_image)
+
         menubar = self.menuBar()
         file_menu = menubar.addMenu("&File")
         file_menu.addAction(load_action)
+        file_menu.addAction(save_action)
+
 
     def create_toolbox(self):
         toolbox = QToolBar("Tools", self)
@@ -90,6 +109,25 @@ class ImageEditor(QMainWindow):
         slider_layout.addWidget(self.brightness_label)
 
         toolbox.addWidget(slider_widget)
+        
+        
+        
+        
+        contrast_slider_layout = QVBoxLayout()
+        contrast_slider_widget = QWidget()
+        contrast_slider_widget.setLayout(contrast_slider_layout)
+
+        contrast_slider = QSlider(Qt.Horizontal)
+        contrast_slider.setRange(-100, 100)
+        contrast_slider.setValue(0)
+        contrast_slider.valueChanged.connect(self.adjust_contrast)
+        contrast_slider.valueChanged.connect(self.update_contrast_label)
+        contrast_slider_layout.addWidget(contrast_slider)
+
+        self.contrast_label = QLabel("Contrast: 0")
+        contrast_slider_layout.addWidget(self.contrast_label)
+
+        toolbox.addWidget(contrast_slider_widget)
 
 
 
@@ -99,7 +137,8 @@ class ImageEditor(QMainWindow):
     def update_brightness_label(self, value):
         self.brightness_label.setText(f"Brightness: {value}")
 
-
+    def save_image(self):
+        save_image(self)
 
     def crop_image(self):
         crop_image(self)
@@ -117,6 +156,19 @@ class ImageEditor(QMainWindow):
         load_image(self)
     def adjust_brightness(self, value):
         adjust_brightness(self, value)
+    
+    def adjust_contrast(self, value):
+        adjust_contrast(self, value)
+        
+
+    def update_contrast_label(self, value):
+        self.contrast_label.setText(f"Contrast: {value}")
+
+
+
+
+
+
 
 
     def default_image(self, imagepatj):
