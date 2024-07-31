@@ -1,15 +1,18 @@
 import sys
 from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,QSlider,QVBoxLayout, QWidget,
+    QWidgetAction,
     QLabel,
     QGraphicsView, QGraphicsScene, QAction, QFileDialog, QToolBar, QPushButton)
 from PyQt5.QtGui import (
     QPen,
     QColor,
     QIcon,
-    QKeySequence
+    QKeySequence,
+    QFont,
+    
 )
-from PyQt5.QtCore import Qt, QRectF, QPointF
+from PyQt5.QtCore import Qt, QRectF, QPointF,QSize
 from tools import (
     set_select_tool,
     crop_image, zoom_in, 
@@ -57,40 +60,89 @@ class ImageEditor(QMainWindow):
         file_menu = menubar.addMenu("&File")
         file_menu.addAction(load_action)
         file_menu.addAction(save_action)
+        menubar.setFixedHeight(40)  # Set the height of the menu bar
+        menubar.setStyleSheet("QMenuBar { background-color: #0078d7; color: white; font-size:20px;}"
+                              "QMenuBar::item { background-color: #0078d7; color: white;  font-size:20px;}"
+                              "QMenuBar::item:selected { background-color: #005bb5;font-size:20px; }")
+
+        export_button = QPushButton("Export")
+        export_button.setIcon(QIcon("assets/save.png"))  # Replace with your icon path
+        export_button.setStyleSheet("QPushButton { background-color: #0078d7; color: white; border: none; padding: 5px 10px; font-size: 14px; }")
+        export_button.clicked.connect(self.save_image)
+
+        # Create a QWidgetAction for the export button
+        export_action = QWidgetAction(menubar)
+        export_action.setDefaultWidget(export_button)
+
+        # Add the export button to the menu bar
+        menubar.addAction(export_action)
+
+
+
 
 
     def create_toolbox(self):
         toolbox = QToolBar("Tools", self)
         toolbox.setFixedWidth(250)
-        self.addToolBar(Qt.RightToolBarArea, toolbox)
+        self.addToolBar(Qt.LeftToolBarArea, toolbox)
 
-        select_tool = QPushButton("Select")
+        title_label = QLabel("    Adjust Image \n")
+        title_label.setFont(QFont("Arial", 16, QFont.Bold))  # Set font size and style
+        toolbox.addWidget(title_label)
+
+
+        select_tool = QPushButton("  Select Tool")
         icon = QIcon("assets/select.png")
         select_tool.setIcon(icon)
+        select_tool.setIconSize(QSize(30,30))
+        select_tool.setStyleSheet(
+            "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"      
+            )
         select_tool.clicked.connect(self.set_select_tool)
         toolbox.addWidget(select_tool)
 
-        crop_tool = QPushButton("Crop")
+        crop_tool = QPushButton("  Crop Tool")
+        crop_tool.setStyleSheet(
+             "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"         
+            )
         icon = QIcon("assets/crop.png")
         crop_tool.setIcon(icon)
+        crop_tool.setIconSize(QSize(30,30))
         crop_tool.clicked.connect(self.crop_image)
         toolbox.addWidget(crop_tool)
 
-        zoom_in_tool = QPushButton("Zoom In")
+        zoom_in_tool = QPushButton("  Zoom In")
         icon = QIcon("assets/zoomin.png")
         zoom_in_tool.setIcon(icon)
+        zoom_in_tool.setStyleSheet(
+             "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"      
+        )
+        zoom_in_tool.setIconSize(QSize(30,30))
         zoom_in_tool.clicked.connect(self.zoom_in)
         toolbox.addWidget(zoom_in_tool)
 
-        zoom_out_tool = QPushButton("Zoom Out")
+        zoom_out_tool = QPushButton("  Zoom Out")
         icon = QIcon("assets/zoomout.png")
         zoom_out_tool.setIcon(icon)
+        zoom_out_tool.setStyleSheet(
+            "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"
+        )
+        zoom_out_tool.setIconSize(QSize(30,30))
         zoom_out_tool.clicked.connect(self.zoom_out)
         toolbox.addWidget(zoom_out_tool)
 
-        rotate_tool = QPushButton("Rotate")
+        rotate_tool = QPushButton("  Rotate")
         icon = QIcon("assets/rotate.png")
         rotate_tool.setIcon(icon)
+        rotate_tool.setIconSize(QSize(30,30))
+        rotate_tool.setStyleSheet(
+            "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"
+        )
         rotate_tool.clicked.connect(self.rotate_image)
         toolbox.addWidget(rotate_tool)
         
@@ -107,6 +159,9 @@ class ImageEditor(QMainWindow):
 
         self.brightness_label = QLabel("Brightness: 0")
         slider_layout.addWidget(self.brightness_label)
+        self.brightness_label.setStyleSheet(
+            "QLabel {font-size: 15px; }"
+        )
 
         toolbox.addWidget(slider_widget)
         
@@ -120,11 +175,15 @@ class ImageEditor(QMainWindow):
         contrast_slider = QSlider(Qt.Horizontal)
         contrast_slider.setRange(-100, 100)
         contrast_slider.setValue(0)
+  
         contrast_slider.valueChanged.connect(self.adjust_contrast)
         contrast_slider.valueChanged.connect(self.update_contrast_label)
         contrast_slider_layout.addWidget(contrast_slider)
 
         self.contrast_label = QLabel("Contrast: 0")
+        self.contrast_label.setStyleSheet(
+            "QLabel {font-size: 15px; }"
+        )
         contrast_slider_layout.addWidget(self.contrast_label)
 
         toolbox.addWidget(contrast_slider_widget)

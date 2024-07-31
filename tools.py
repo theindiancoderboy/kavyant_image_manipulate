@@ -76,6 +76,8 @@ def adjust_brightness(editor, value):
         # Convert back to QImage for display
         height, width, channel = bright_image.shape
         bytes_per_line = 3 * width
+        bright_image = cv2.cvtColor(bright_image, cv2.COLOR_BGR2RGB)
+
         qimage = QImage(bright_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
         editor.pixmap = QPixmap.fromImage(qimage)
@@ -101,6 +103,7 @@ def adjust_contrast(editor, value):
         # Convert back to QImage for display
         height, width, channel = contrast_image.shape
         bytes_per_line = 3 * width
+        contrast_image = cv2.cvtColor(contrast_image, cv2.COLOR_BGR2RGB)
         qimage = QImage(contrast_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
         editor.pixmap = QPixmap.fromImage(qimage)
