@@ -1,15 +1,34 @@
 import sys
 from PyQt5.QtWidgets import (
-    QMainWindow, QApplication, QGraphicsRectItem,QSpinBox,QSlider,QVBoxLayout, QWidget,
+    QMainWindow, 
+    QApplication,
+    QGraphicsRectItem,
+    QSpinBox,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
     QWidgetAction,
     QLabel,
-    QGraphicsView, QGraphicsScene, QAction, QFileDialog, QToolBar, QPushButton)
+    QDialogButtonBox,
+    QGraphicsView,
+    QGraphicsScene,
+    QAction, 
+    QFileDialog,
+    QToolBar,
+    QPushButton,
+    QDialog,
+    QFormLayout,
+    QLineEdit,
+    QComboBox,
+    QDateTimeEdit
+    )
 from PyQt5.QtGui import (
     QPen,
     QColor,
     QIcon,
     QKeySequence,
     QFont,
+    QPainter
     
 )
 from PyQt5.QtCore import Qt, QRectF, QPointF,QSize
@@ -22,6 +41,79 @@ from tools import (
     adjust_contrast,
     save_image
 )
+
+
+class PatientInfoDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Patient Information")
+
+        self.form_layout = QFormLayout()
+
+        self.name_input = QLineEdit()
+        self.age_input = QLineEdit()
+        self.sex_input = QComboBox()
+        self.sex_input.addItems(["Male", "Female", "Transgender"])
+        self.dr_name_input = QLineEdit()
+        self.datetime_input = QDateTimeEdit()
+        self.datetime_input.setCalendarPopup(True)
+        self.datetime_input.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+
+        self.position_input = QComboBox()
+        self.position_input.addItems(["Top Left", "Top Right", "Bottom Left", "Bottom Right"])
+
+        self.form_layout.addRow("Patient Name:", self.name_input)
+        self.form_layout.addRow("Age:", self.age_input)
+        self.form_layout.addRow("Sex:", self.sex_input)
+        self.form_layout.addRow("Dr Name:", self.dr_name_input)
+        self.form_layout.addRow("Date & Time:", self.datetime_input)
+        self.form_layout.addRow("Position:", self.position_input)
+
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = QVBoxLayout()
+        self.layout.addLayout(self.form_layout)
+        self.layout.addWidget(self.button_box)
+
+        self.setLayout(self.layout)
+
+        # Add input validation
+        self.name_input.textChanged.connect(self.validate_inputs)
+        self.age_input.textChanged.connect(self.validate_inputs)
+        self.sex_input.currentTextChanged.connect(self.validate_inputs)
+        self.dr_name_input.textChanged.connect(self.validate_inputs)
+        self.datetime_input.dateTimeChanged.connect(self.validate_inputs)
+        self.position_input.currentTextChanged.connect(self.validate_inputs)
+
+        # Add styles
+        self.set_styles()
+
+
+    def validate_inputs(self):
+        if all([self.name_input.text(), self.age_input.text(), self.sex_input.currentText(),
+                self.dr_name_input.text(), self.datetime_input.dateTime(), self.position_input.currentText()]):
+            self.button_box.button(QDialogButtonBox.Ok).setEnabled(True)
+        else:
+            self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+    def set_styles(self):
+        self.setStyleSheet("""
+            QLineEdit, QComboBox, QDateTimeEdit {
+                border: 2px solid gray;
+                border-radius: 10px;
+                padding: 5px;
+                font-size: 16px;
+            }
+            QLineEdit:hover, QComboBox:hover, QDateTimeEdit:hover {
+                border: 2px solid blue;
+            }
+            QComboBox {
+                padding-left: 7px;
+            }
+        """)
+
 
 class ImageEditor(QMainWindow):
     def __init__(self):
@@ -47,6 +139,44 @@ class ImageEditor(QMainWindow):
         self.create_menu()
         self.create_toolbox()
         self.default_image("default.jpg")
+    def open_patient_info_dialog(self):
+        dialog = PatientInfoDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            name = dialog.name_input.text()
+            age = dialog.age_input.text()
+            sex = dialog.sex_input.currentText()
+            dr_name = dialog.dr_name_input.text()
+            datetime = dialog.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
+            position = dialog.position_input.currentText()
+            
+            self.add_patient_info(name, age, sex, dr_name, datetime, position)
+
+    def add_patient_info(self, name, age, sex, dr_name, datetime, position):
+        painter = QPainter(self.pixmap)
+        painter.setPen(QColor(255, 0, 0))
+        painter.setFont(QFont('Arial', 12))
+        rect_top_left = QRectF(10, 30, self.pixmap.width() - 20, self.pixmap.height() - 60)
+        rect_top_right = QRectF(self.pixmap.width() - 210, 30, 200, self.pixmap.height() - 60)
+        rect_bottom_left = QRectF(10, self.pixmap.height() - 130, self.pixmap.width() - 20, 100)
+        rect_bottom_right = QRectF(self.pixmap.width() - 210, self.pixmap.height() - 130, 200, 100)
+
+        text = f"Patient Name: {name}\nAge: {age}\nSex: {sex}\nDr Name: {dr_name}\nDate & Time: {datetime}"
+
+        if position == "Top Left":
+            painter.drawText(rect_top_left, Qt.TextWordWrap, text)
+        elif position == "Top Right":
+            painter.drawText(rect_top_right, Qt.TextWordWrap, text)
+        elif position == "Bottom Left":
+            painter.drawText(rect_bottom_left, Qt.TextWordWrap, text)
+        elif position == "Bottom Right":
+            painter.drawText(rect_bottom_right, Qt.TextWordWrap, text)
+
+
+        painter.end()
+        self.scene.clear()
+        self.image_item = self.scene.addPixmap(self.pixmap)
+        self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+
 
     def create_menu(self):
         load_action = QAction("&Load Image", self)
@@ -145,6 +275,17 @@ class ImageEditor(QMainWindow):
         )
         rotate_tool.clicked.connect(self.rotate_image)
         toolbox.addWidget(rotate_tool)
+        
+        addinfo = QPushButton("  Insert patient Info")
+        icon = QIcon("assets/medical.png")
+        addinfo.setIcon(icon)
+        addinfo.setIconSize(QSize(30,30))
+        addinfo.setStyleSheet(
+            "QPushButton { background-color:none; color: black; \
+             padding: 5px 5px; margin: 5px 5px; font-size: 18px; }"
+        )
+        addinfo.clicked.connect(self.open_patient_info_dialog)
+        toolbox.addWidget(addinfo)
         
         slider_layout = QVBoxLayout()
         slider_widget = QWidget()
