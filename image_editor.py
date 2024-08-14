@@ -20,17 +20,33 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QComboBox,
-    QDateTimeEdit
+    QDateTimeEdit,
+
+
+
     )
+from PyQt5.QtPrintSupport import (
+    QPrintDialog,
+    QPrinter,
+    
+)
+import cv2
+import os
+from PyQt5.QtCore import (
+    QDateTime
+)
 from PyQt5.QtGui import (
     QPen,
     QColor,
     QIcon,
     QKeySequence,
     QFont,
-    QPainter
+    QPainter,
+    QPixmap,QImage,QPageLayout
     
 )
+import numpy as np
+from PIL import Image
 from PyQt5.QtCore import Qt, QRectF, QPointF,QSize
 from tools import (
     set_select_tool,
@@ -39,7 +55,8 @@ from tools import (
     load_image, default_image,
     adjust_brightness,
     adjust_contrast,
-    save_image
+    save_image,
+    undo_change
 )
 
 
@@ -58,17 +75,25 @@ class PatientInfoDialog(QDialog):
         self.datetime_input = QDateTimeEdit()
         self.datetime_input.setCalendarPopup(True)
         self.datetime_input.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-
+        self.datetime_input.setDateTime(QDateTime.currentDateTime())
         self.position_input = QComboBox()
+        
         self.position_input.addItems(["Top Left", "Top Right", "Bottom Left", "Bottom Right"])
 
+        self.fontsize = QComboBox()
+        self.fontsize.addItems([str(i) for i in range(10,30)])
+        
+        self.fontcolor = QComboBox()
+        self.fontcolor.addItems(['red','black', 'blue', 'white','green'])
+        
         self.form_layout.addRow("Patient Name:", self.name_input)
         self.form_layout.addRow("Age:", self.age_input)
         self.form_layout.addRow("Sex:", self.sex_input)
         self.form_layout.addRow("Dr Name:", self.dr_name_input)
         self.form_layout.addRow("Date & Time:", self.datetime_input)
         self.form_layout.addRow("Position:", self.position_input)
-
+        self.form_layout.addRow("Font Size", self.fontsize)
+        self.form_layout.addRow("Font Color", self.fontcolor)
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
         self.button_box.accepted.connect(self.accept)
@@ -132,7 +157,9 @@ class ImageEditor(QMainWindow):
         self.end_pos = QPointF()
         self.current_tool = 'select'
         self.selecting = False
-
+        self.brightnesslevel=0
+        self.undo_stack=[]
+        self.redo_stack=[]
         self.view.setMouseTracking(True)
         self.view.viewport().installEventFilter(self)
 
@@ -148,13 +175,46 @@ class ImageEditor(QMainWindow):
             dr_name = dialog.dr_name_input.text()
             datetime = dialog.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
             position = dialog.position_input.currentText()
-            
-            self.add_patient_info(name, age, sex, dr_name, datetime, position)
+            fontsize = dialog.fontsize.currentText()
+            fontcolor = dialog.fontcolor.currentText()
+            self.add_patient_info(name, age, sex, dr_name, datetime, position, int(fontsize),fontcolor)
+    def save__current_state(self, original=False):
+    # Save the current pixmap as a state before any changes
+        # print("new event added")
+        
+        if original:
+            pass
+            # bright_image = editor.original_image.astype(np.float32)
+            # height, width, channel = bright_image.shape
+            # bytes_per_line = 3 * width
+            # bright_image = cv2.cvtColor(bright_image, cv2.COLOR_BGR2RGB)
+            # bright_image = cv2.cvtColor(bright_image, cv2.COLOR_RGB2BGR)
 
-    def add_patient_info(self, name, age, sex, dr_name, datetime, position):
+            # qimage = QImage(bright_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+            # pixmap = QPixmap.fromImage(qimage)
+            # editor.undo_stack.append(pixmap.copy())
+        if self.pixmap:
+            self.undo_stack.append(self.pixmap.copy())
+        # Limit the undo stack to the last 3 states
+        if len(self.undo_stack) > 3:
+            self.undo_stack.pop(0)
+    def add_patient_info(self, name, age, sex, dr_name, datetime, position, fontsize=14,fontcolor='red'):
         painter = QPainter(self.pixmap)
-        painter.setPen(QColor(255, 0, 0))
-        painter.setFont(QFont('Arial', 12))
+        self.save__current_state()
+        if fontcolor =='red':
+            color=QColor(255, 0, 0)
+        elif fontcolor =='black':
+            color=QColor(0, 0, 0)
+        elif fontcolor =='white':
+            color=QColor(255,255,255)
+        elif fontcolor =='blue':
+            color=QColor(0, 0, 102)
+            
+        elif fontcolor =='green':
+            color=QColor(0, 102, 0)
+        painter.setPen(color)
+        painter.setFont(QFont('Arial', fontsize))
         rect_top_left = QRectF(10, 30, self.pixmap.width() - 20, self.pixmap.height() - 60)
         rect_top_right = QRectF(self.pixmap.width() - 210, 30, 200, self.pixmap.height() - 60)
         rect_bottom_left = QRectF(10, self.pixmap.height() - 130, self.pixmap.width() - 20, 100)
@@ -177,6 +237,31 @@ class ImageEditor(QMainWindow):
         self.image_item = self.scene.addPixmap(self.pixmap)
         self.scene.setSceneRect(QRectF(self.pixmap.rect()))
 
+    def print_image(self):
+        if self.original_image is None:
+            return
+        
+        image=self.pixmap.toImage()
+        ptr = image.bits()
+        ptr.setsize(image.byteCount())
+        width = image.width()
+        height = image.height()
+        arr = np.array(ptr).reshape(height, width, 4)
+        
+        pil_image = Image.fromarray(arr, 'RGBA')
+        cv2_image = np.array(pil_image)
+        # self.save__current_state()
+        try:
+            os.mkdir("tmp")
+        except Exception:
+            pass
+        try:
+            cv2.imwrite("tmp\\tmp.png", cv2_image)
+            os.startfile("tmp\\tmp.png", "print")  
+        except Exception:
+            pass
+
+
 
     def create_menu(self):
         load_action = QAction("&Load Image", self)
@@ -186,13 +271,35 @@ class ImageEditor(QMainWindow):
         save_action.setShortcut(QKeySequence.Save)
         save_action.triggered.connect(self.save_image)
 
+        print_action = QAction("&Print Image", self)
+        print_action.setShortcut(QKeySequence.Print)
+        print_action.triggered.connect(self.print_image)
+        
+        
+        undo_action = QAction("&Undo", self)
+        undo_action.setShortcut(QKeySequence.Undo)
+        undo_action.triggered.connect(self.undo)
+        
+        redo_action = QAction("&Redo", self)
+        redo_action.setShortcut(QKeySequence.Redo)
+        redo_action.triggered.connect(self.redo)
+
+        
+        
         menubar = self.menuBar()
+        
         file_menu = menubar.addMenu("&File")
         file_menu.addAction(load_action)
         file_menu.addAction(save_action)
+        file_menu.addAction(print_action)
+
+        
+        edit_menu = menubar.addMenu("&Edit")
+        edit_menu.addAction(undo_action)
+        edit_menu.addAction(redo_action)
         menubar.setFixedHeight(40)  # Set the height of the menu bar
         menubar.setStyleSheet("QMenuBar { background-color: #0078d7; color: white; font-size:20px;}"
-                              "QMenuBar::item { background-color: #0078d7; color: white;  font-size:20px;}"
+                              "QMenuBar::item { background-color: #0078d7; color: white; margin-left:20px;  font-size:20px;}"
                               "QMenuBar::item:selected { background-color: #005bb5;font-size:20px; }")
 
         export_button = QPushButton("Export")
@@ -291,12 +398,12 @@ class ImageEditor(QMainWindow):
         slider_widget = QWidget()
         slider_widget.setLayout(slider_layout)
         
-        brightness_slider = QSlider(Qt.Horizontal)
-        brightness_slider.setRange(-100, 100)
-        brightness_slider.setValue(0)
-        brightness_slider.valueChanged.connect(self.adjust_brightness)
-        brightness_slider.valueChanged.connect(self.update_brightness_label)
-        slider_layout.addWidget(brightness_slider)
+        self.brightness_slider = QSlider(Qt.Horizontal)
+        self.brightness_slider.setRange(-100, 100)
+        self.brightness_slider.setValue(0)
+        self.brightness_slider.valueChanged.connect(self.adjust_brightness)
+        self.brightness_slider.valueChanged.connect(self.update_brightness_label)
+        slider_layout.addWidget(self.brightness_slider)
 
         self.brightness_label = QLabel("Brightness: 0")
         slider_layout.addWidget(self.brightness_label)
@@ -330,6 +437,9 @@ class ImageEditor(QMainWindow):
         toolbox.addWidget(contrast_slider_widget)
 
 
+    def update_brightness_label(self):
+        self.brightness_slider.setValue(self.brightnesslevel)
+        self.brightness_label.setText(f"Brightness : {self.brightnesslevel}")
 
     def set_select_tool(self):
         set_select_tool(self)
@@ -364,11 +474,11 @@ class ImageEditor(QMainWindow):
     def update_contrast_label(self, value):
         self.contrast_label.setText(f"Contrast: {value}")
 
-
-
-
-
-
+    def undo(self):
+        undo_change(self)
+    def redo(self):
+        pass
+        
 
 
     def default_image(self, imagepatj):
